@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const CONTRACT_ADDRESS = 'TXf6VxedZiDsE1NoMcAE3vKnh6fdjppoG3';
+const CONTRACT_ADDRESS = 'TCL6M2NnQ1Ath5MgYqpRuJBN1zXjuZa5F4';
 const CONTRACT_ABI = [
   {
     constant: true,
