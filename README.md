@@ -5,7 +5,11 @@ This is a simple frontend dApp built to display USDTF balances and expired token
 > ⚠️ This is an educational and experimental project, currently deployed on the TRON Nile Testnet. It is **not for profit** and **not a live financial application**.
 
 ---
+## 📦 Latest Release
 
+You can download or view the latest version from the [GitHub Releases page](https://github.com/trotok-sud/USDTWeb/releases).
+
+---
 ## Features
 
 - ✅ Connects to TronLink wallet (required)
