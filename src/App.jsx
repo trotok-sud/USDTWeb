@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import TronWeb from 'tronweb';
-import { ethers } from 'ethers';
 import './App.css';
 
 const CONTRACT_ADDRESS = 'TCL6M2NnQ1Ath5MgYqpRuJBN1zXjuZa5F4';
@@ -59,6 +58,8 @@ function App() {
   const [transferAmount, setTransferAmount] = useState('');
   const [mintTo, setMintTo] = useState('');
   const [mintAmount, setMintAmount] = useState('');
+  const [lookupAddress, setLookupAddress] = useState('');
+  const [lookupBalance, setLookupBalance] = useState(null);
 
   const fetchData = async () => {
     if (!walletAddress) return;
@@ -138,6 +139,18 @@ function App() {
     }
   };
 
+  const checkLookupBalance = async () => {
+    if (!tronWeb || providerType !== 'tron') return;
+    try {
+      const contract = await tronWeb.contract(USDTF_ABI, CONTRACT_ADDRESS);
+      const result = await contract.balanceOf(lookupAddress).call();
+      setLookupBalance(tronWeb.fromSun(result));
+    } catch (err) {
+      console.error('Balance lookup failed:', err);
+      setLookupBalance('Invalid address or error');
+    }
+  };
+
   const getInstallMessage = () => {
     if (!window.tronWeb && !window.BinanceChain && !window.ethereum) {
       return (
@@ -162,7 +175,19 @@ function App() {
           <p><strong>Wallet:</strong> Connected ✅</p>
           <p><strong>Token Name:</strong> {tokenName}</p>
           <p><strong>Symbol:</strong> {tokenSymbol}</p>
-          <p><strong>Balance:</strong> {balance} {tokenSymbol}</p>
+          <p><strong>Your Balance:</strong> {balance} {tokenSymbol}</p>
+
+          <h2>Check Balance of Any Wallet</h2>
+          <input
+            type="text"
+            placeholder="Enter wallet address"
+            value={lookupAddress}
+            onChange={(e) => setLookupAddress(e.target.value)}
+          />
+          <button onClick={checkLookupBalance}>Check</button>
+          {lookupBalance !== null && (
+            <p><strong>Balance:</strong> {lookupBalance} {tokenSymbol}</p>
+          )}
 
           <h2>Transfer Tokens</h2>
           <input type="text" placeholder="Recipient Address" value={transferTo} onChange={(e) => setTransferTo(e.target.value)} />
@@ -180,6 +205,7 @@ function App() {
           {getInstallMessage()}
         </>
       )}
+
       <footer>
         <hr />
         <p>
@@ -187,7 +213,7 @@ function App() {
           <a href="https://github.com/trotok-sud/USDTF" target="_blank">Source Code</a> |{' '}
           <a href="https://github.com/trotok-sud/USDTF/blob/main/docs/Usdtf%20Audit%20Report.pdf" target="_blank">Audit Report</a>
         </p>
-        <p>© 2025 Trotok Development Team</p>
+        <p>&copy; 2025 Trotok Development Team</p>
       </footer>
     </div>
   );
