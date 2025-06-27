@@ -26,42 +26,64 @@ function App() {
   const [balance, setBalance] = useState(null);
   const [expiredLots, setExpiredLots] = useState([]);
 
+  const [contract, setContract] = useState(null);
+
+  // Initialize wallet and contract
   useEffect(() => {
     const init = async () => {
-      if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
-        console.log("[USDT Viewer] Waiting for TronWeb...");
-        return;
-      }
+      if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+        const addr = window.tronWeb.defaultAddress.base58;
+        setAddress(addr);
 
-      try {
-        const userAddress = window.tronWeb.defaultAddress.base58;
-        setAddress(userAddress);
-
-        const contract = await window.tronWeb.contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-
-        // Fetch balance
-        const balanceRaw = await contract.balanceOf(userAddress).call();
-        setBalance(Number(balanceRaw) / 1e6);
-
-        // Fetch expired token lots
-        const [amounts, times] = await contract.getExpiredTokenLots(userAddress).call();
-        const lots = amounts.map((a, i) => ({
-          amount: Number(a) / 1e6,
-          timestamp: Number(times[i])
-        }));
-        setExpiredLots(lots);
-      } catch (error) {
-        console.error("Error reading contract:", error);
+        const ctr = await window.tronWeb.contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+        setContract(ctr);
       }
     };
 
-    const checkTronWeb = setInterval(() => {
-      if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-        clearInterval(checkTronWeb);
-        init();
-      }
-    }, 500);
+    init();
   }, []);
+
+  // Fetch balance
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        const result = await contract.balanceOf(address).call();
+        setBalance(Number(result));
+      } catch (error) {
+        console.error("Error fetching spendable balance:", error);
+        setBalance(0);
+      }
+    };
+
+    if (contract && address) {
+      fetchBalance();
+    }
+  }, [contract, address]);
+
+  // Fetch expired lots
+  useEffect(() => {
+    const fetchExpiredLots = async () => {
+      try {
+        const result = await contract.getExpiredTokenLots(address).call();
+        const amounts = result[0];
+        const timestamps = result[1];
+
+        const lots = amounts.map((amt, idx) => ({
+          amount: Number(amt) / 1_000_000,
+          timestamp: Number(timestamps[idx])
+        }));
+
+        setExpiredLots(lots);
+      } catch (error) {
+        console.error("Error fetching expired lots:", error);
+        setExpiredLots([]);
+      }
+    };
+
+    if (contract && address) {
+      fetchExpiredLots();
+    }
+  }, [contract, address]);
 
   return (
     <div style={{ fontFamily: 'Arial', padding: '2em' }}>
@@ -74,11 +96,15 @@ function App() {
       <p><strong>Wallet Address:</strong><br />
         {address || "Connecting..."}</p>
 
-      <p><strong>Spendable USDTF Balance:</strong><br />
-        {balance !== null ? `${balance} USDTF` : "Loading..."}</p>
+      <p>
+        <strong>Spendable USDTF Balance:</strong><br />
+        {balance === null ? "Loading..." : `${balance / 1_000_000} USDTF`}
+      </p>
 
       <p><strong>Expired Token Lots:</strong><br />
-        {expiredLots.length > 0 ? (
+        {expiredLots.length === 0 ? (
+          <p>No expired token lots.</p>
+        ) : (
           <ul>
             {expiredLots.map((lot, index) => (
               <li key={index}>
@@ -86,7 +112,7 @@ function App() {
               </li>
             ))}
           </ul>
-        ) : "None"}
+        )}
       </p>
     </div>
   );
