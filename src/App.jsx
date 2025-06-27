@@ -60,6 +60,27 @@ function App() {
   const [mintTo, setMintTo] = useState('');
   const [mintAmount, setMintAmount] = useState('');
 
+  const fetchData = async () => {
+    if (!walletAddress) return;
+    try {
+      if (providerType === 'tron' && tronWeb) {
+        const contract = await tronWeb.contract(USDTF_ABI, CONTRACT_ADDRESS);
+        const name = await contract.name().call();
+        const symbol = await contract.symbol().call();
+        const bal = await contract.balanceOf(walletAddress).call();
+        setTokenName(name);
+        setTokenSymbol(symbol);
+        setBalance(tronWeb.fromSun(bal));
+      } else {
+        setTokenName('USDTF');
+        setTokenSymbol('USDTF');
+        setBalance('N/A on EVM wallet');
+      }
+    } catch (err) {
+      console.error('Error fetching data:', err);
+    }
+  };
+
   useEffect(() => {
     const connectWallet = async () => {
       if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
@@ -88,26 +109,6 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!walletAddress) return;
-      try {
-        if (providerType === 'tron' && tronWeb) {
-          const contract = await tronWeb.contract(USDTF_ABI, CONTRACT_ADDRESS);
-          const name = await contract.name().call();
-          const symbol = await contract.symbol().call();
-          const bal = await contract.balanceOf(walletAddress).call();
-          setTokenName(name);
-          setTokenSymbol(symbol);
-          setBalance(tronWeb.fromSun(bal));
-        } else {
-          setTokenName('USDTF');
-          setTokenSymbol('USDTF');
-          setBalance('N/A on EVM wallet');
-        }
-      } catch (err) {
-        console.error('Error fetching data:', err);
-      }
-    };
     fetchData();
   }, [tronWeb, walletAddress, providerType]);
 
@@ -117,6 +118,7 @@ function App() {
       const contract = await tronWeb.contract(USDTF_ABI, CONTRACT_ADDRESS);
       await contract.transfer(transferTo, tronWeb.toSun(transferAmount)).send();
       alert('Transfer successful');
+      fetchData();
     } catch (err) {
       console.error('Transfer failed:', err);
       alert('Transfer failed');
@@ -129,6 +131,7 @@ function App() {
       const contract = await tronWeb.contract(USDTF_ABI, CONTRACT_ADDRESS);
       await contract.mint(mintTo, tronWeb.toSun(mintAmount)).send();
       alert('Mint successful');
+      fetchData();
     } catch (err) {
       console.error('Minting failed:', err);
       alert('Minting failed');
@@ -150,24 +153,13 @@ function App() {
 
   return (
     <div className="container">
-      <img
-        src="/logo.png"
-        alt="USDTF Logo"
-        style={{
-          width: '120px',
-          height: '120px',
-          display: 'block',
-          margin: '1rem auto'
-        }}
-      />
-
-      />
       <h1>USDTF Token Viewer</h1>
       <p><strong>Smart Contract Address:</strong> {CONTRACT_ADDRESS}</p>
-      <p><strong>Project:</strong> USDTF is a TRON-based stable token designed for peer-to-peer educational and experimental use.</p>
+      <p><strong>Project:</strong> USDTF - TRON-based token for peer-to-peer stable transactions</p>
 
       {walletAddress ? (
         <>
+          <p><strong>Wallet:</strong> Connected ✅</p>
           <p><strong>Token Name:</strong> {tokenName}</p>
           <p><strong>Symbol:</strong> {tokenSymbol}</p>
           <p><strong>Balance:</strong> {balance} {tokenSymbol}</p>
@@ -184,19 +176,18 @@ function App() {
         </>
       ) : (
         <>
-          <p>Please connect your TronLink, MetaMask, or Binance Wallet to interact with the contract.</p>
+          <p>Please connect TronLink, MetaMask, or Binance Wallet.</p>
           {getInstallMessage()}
         </>
       )}
-
       <footer>
         <hr />
         <p>
           <a href="https://trotok-sud.github.io/USDTWeb" target="_blank">Official Website</a> |{' '}
-          <a href="https://github.com/trotok-sud/USDTF" target="_blank">GitHub</a> |{' '}
+          <a href="https://github.com/trotok-sud/USDTF" target="_blank">Source Code</a> |{' '}
           <a href="https://github.com/trotok-sud/USDTF/blob/main/docs/Usdtf%20Audit%20Report.pdf" target="_blank">Audit Report</a>
         </p>
-        <p>&copy; 2025 Trotok Development Team</p>
+        <p>© 2025 Trotok Development Team</p>
       </footer>
     </div>
   );
