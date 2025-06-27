@@ -1,7 +1,24 @@
 import { useEffect, useState } from 'react';
+import TronWeb from 'tronweb';
+import { ethers } from 'ethers';
+import './App.css';
 
 const CONTRACT_ADDRESS = 'TCL6M2NnQ1Ath5MgYqpRuJBN1zXjuZa5F4';
-const CONTRACT_ABI = [
+const USDTF_ABI = [
+  {
+    constant: true,
+    inputs: [],
+    name: 'name',
+    outputs: [{ name: '', type: 'string' }],
+    type: 'function',
+  },
+  {
+    constant: true,
+    inputs: [],
+    name: 'symbol',
+    outputs: [{ name: '', type: 'string' }],
+    type: 'function',
+  },
   {
     constant: true,
     inputs: [{ name: '_owner', type: 'address' }],
@@ -10,110 +27,180 @@ const CONTRACT_ABI = [
     type: 'function',
   },
   {
-    constant: true,
-    inputs: [{ name: '_owner', type: 'address' }],
-    name: 'getExpiredTokenLots',
-    outputs: [
-      { name: '', type: 'uint256[]' },
-      { name: '', type: 'uint256[]' }
+    constant: false,
+    inputs: [
+      { name: '_to', type: 'address' },
+      { name: '_amount', type: 'uint256' }
     ],
+    name: 'transfer',
+    outputs: [{ name: 'success', type: 'bool' }],
+    type: 'function',
+  },
+  {
+    constant: false,
+    inputs: [
+      { name: '_to', type: 'address' },
+      { name: '_amount', type: 'uint256' }
+    ],
+    name: 'mint',
+    outputs: [],
     type: 'function',
   }
 ];
 
 function App() {
-  const [address, setAddress] = useState(null);
+  const [walletAddress, setWalletAddress] = useState(null);
+  const [tronWeb, setTronWeb] = useState(null);
+  const [tokenName, setTokenName] = useState('');
+  const [tokenSymbol, setTokenSymbol] = useState('');
   const [balance, setBalance] = useState(null);
-  const [expiredLots, setExpiredLots] = useState([]);
+  const [providerType, setProviderType] = useState(null);
+  const [transferTo, setTransferTo] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [mintTo, setMintTo] = useState('');
+  const [mintAmount, setMintAmount] = useState('');
 
-  const [contract, setContract] = useState(null);
-
-  // Initialize wallet and contract
   useEffect(() => {
-    const init = async () => {
+    const connectWallet = async () => {
       if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-        const addr = window.tronWeb.defaultAddress.base58;
-        setAddress(addr);
-
-        const ctr = await window.tronWeb.contract(CONTRACT_ABI, CONTRACT_ADDRESS);
-        setContract(ctr);
+        setTronWeb(window.tronWeb);
+        setWalletAddress(window.tronWeb.defaultAddress.base58);
+        setProviderType('tron');
+      } else if (window.BinanceChain) {
+        try {
+          const accounts = await window.BinanceChain.request({ method: 'eth_requestAccounts' });
+          setWalletAddress(accounts[0]);
+          setProviderType('binance');
+        } catch (err) {
+          console.error('Binance Wallet connection failed:', err);
+        }
+      } else if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          setWalletAddress(accounts[0]);
+          setProviderType('metamask');
+        } catch (err) {
+          console.error('MetaMask connection failed:', err);
+        }
       }
     };
-
-    init();
+    connectWallet();
   }, []);
 
-  // Fetch balance
   useEffect(() => {
-    const fetchBalance = async () => {
+    const fetchData = async () => {
+      if (!walletAddress) return;
       try {
-        const result = await contract.balanceOf(address).call();
-        setBalance(Number(result));
-      } catch (error) {
-        console.error("Error fetching spendable balance:", error);
-        setBalance(0);
+        if (providerType === 'tron' && tronWeb) {
+          const contract = await tronWeb.contract(USDTF_ABI, CONTRACT_ADDRESS);
+          const name = await contract.name().call();
+          const symbol = await contract.symbol().call();
+          const bal = await contract.balanceOf(walletAddress).call();
+          setTokenName(name);
+          setTokenSymbol(symbol);
+          setBalance(tronWeb.fromSun(bal));
+        } else {
+          setTokenName('USDTF');
+          setTokenSymbol('USDTF');
+          setBalance('N/A on EVM wallet');
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
       }
     };
+    fetchData();
+  }, [tronWeb, walletAddress, providerType]);
 
-    if (contract && address) {
-      fetchBalance();
+  const transferTokens = async () => {
+    if (!tronWeb || providerType !== 'tron') return;
+    try {
+      const contract = await tronWeb.contract(USDTF_ABI, CONTRACT_ADDRESS);
+      await contract.transfer(transferTo, tronWeb.toSun(transferAmount)).send();
+      alert('Transfer successful');
+    } catch (err) {
+      console.error('Transfer failed:', err);
+      alert('Transfer failed');
     }
-  }, [contract, address]);
+  };
 
-  // Fetch expired lots
-  useEffect(() => {
-    const fetchExpiredLots = async () => {
-      try {
-        const result = await contract.getExpiredTokenLots(address).call();
-        const amounts = result[0];
-        const timestamps = result[1];
-
-        const lots = amounts.map((amt, idx) => ({
-          amount: Number(amt) / 1_000_000,
-          timestamp: Number(timestamps[idx])
-        }));
-
-        setExpiredLots(lots);
-      } catch (error) {
-        console.error("Error fetching expired lots:", error);
-        setExpiredLots([]);
-      }
-    };
-
-    if (contract && address) {
-      fetchExpiredLots();
+  const mintTokens = async () => {
+    if (!tronWeb || providerType !== 'tron') return;
+    try {
+      const contract = await tronWeb.contract(USDTF_ABI, CONTRACT_ADDRESS);
+      await contract.mint(mintTo, tronWeb.toSun(mintAmount)).send();
+      alert('Mint successful');
+    } catch (err) {
+      console.error('Minting failed:', err);
+      alert('Minting failed');
     }
-  }, [contract, address]);
+  };
+
+  const getInstallMessage = () => {
+    if (!window.tronWeb && !window.BinanceChain && !window.ethereum) {
+      return (
+        <p>
+          Please install <a href="https://www.tronlink.org/" target="_blank" rel="noopener noreferrer">TronLink</a>,{' '}
+          <a href="https://metamask.io/" target="_blank" rel="noopener noreferrer">MetaMask</a>, or{' '}
+          <a href="https://www.binance.org/en/wallet" target="_blank" rel="noopener noreferrer">Binance Wallet</a> extension to use this site.
+        </p>
+      );
+    }
+    return null;
+  };
 
   return (
-    <div style={{ fontFamily: 'Arial', padding: '2em' }}>
-      <p style={{ background: "#fff3cd", color: "#856404", padding: "1em", borderRadius: "8px", border: "1px solid #ffeeba" }}>
-        ⚠️ <strong>Note:</strong> This app requires the <a href="https://www.tronlink.org/" target="_blank" rel="noopener noreferrer">TronLink</a> wallet browser extension. Please make sure it is installed and unlocked.
-      </p>
+    <div className="container">
+      <img src="/logo.png" alt="USDTF Logo" style={{ height: '80px', marginBottom: '1rem' }} />
+      <h1>USDTF Token Viewer</h1>
+      <p><strong>Smart Contract Address:</strong> {CONTRACT_ADDRESS}</p>
+      <p><strong>Project:</strong> USDTF - TRON-based token for peer-to-peer stable transactions</p>
 
-      <h2>USDTF Viewer</h2>
+      {walletAddress ? (
+        <>
+          <p><strong>Wallet:</strong> Connected ✅</p>
+          <p><strong>Token Name:</strong> {tokenName}</p>
+          <p><strong>Symbol:</strong> {tokenSymbol}</p>
+          <p><strong>Balance:</strong> {balance} {tokenSymbol}</p>
 
-      <p><strong>Wallet Address:</strong><br />
-        {address || "Connecting..."}</p>
+          <h2>Transfer Tokens</h2>
+          <input type="text" placeholder="Recipient Address" value={transferTo} onChange={(e) => setTransferTo(e.target.value)} />
+          <input type="number" placeholder="Amount" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
+          <button onClick={transferTokens}>Transfer</button>
 
-      <p>
-        <strong>Spendable USDTF Balance:</strong><br />
-        {balance === null ? "Loading..." : `${balance / 1_000_000} USDTF`}
-      </p>
+          <h2>Mint Tokens (Owner Only)</h2>
+          <input type="text" placeholder="Recipient Address" value={mintTo} onChange={(e) => setMintTo(e.target.value)} />
+          <input type="number" placeholder="Amount" value={mintAmount} onChange={(e) => setMintAmount(e.target.value)} />
+          <button onClick={mintTokens}>Mint</button>
+        </>
+      ) : (
+        <>
+          <p>Please connect TronLink, MetaMask, or Binance Wallet.</p>
+          {getInstallMessage()}
+        </>
+      )}
+      <h2>Request Tokens</h2>
+      <p>If you're interested in receiving USDTF tokens for testing or use, feel free to contact us:</p>
+      <ul>
+        <li>Email: <a href="mailto:trotok.dev@gmail.com">trotok.dev@gmail.com</a></li>
+        <li>GitHub: <a href="https://github.com/trotok-sud/USDTF" target="_blank">Project Repository</a></li>
+      </ul>
 
-      <p><strong>Expired Token Lots:</strong><br />
-        {expiredLots.length === 0 ? (
-          <p>No expired token lots.</p>
-        ) : (
-          <ul>
-            {expiredLots.map((lot, index) => (
-              <li key={index}>
-                {lot.amount} USDTF (expired at {new Date(lot.timestamp * 1000).toLocaleString()})
-              </li>
-            ))}
-          </ul>
-        )}
-      </p>
+      <footer>
+        <hr />
+        <p>
+          <a href="https://trotok-sud.github.io/USDTWeb" target="_blank" rel="noopener noreferrer">Official Website</a> |{' '}
+          <a href="https://github.com/trotok-sud/USDTF" target="_blank" rel="noopener noreferrer">Source Code</a> |{' '}
+          <a href="https://github.com/trotok-sud/USDTF/blob/main/docs/Usdtf%20Audit%20Report.pdf" target="_blank" rel="noopener noreferrer">Audit Report</a>
+        </p>
+        <p>© 2025 Trotok Development Team. All rights reserved.</p>
+        <p>
+          <p>
+            If you're interested in receiving USDTF tokens for educational or testing purposes, feel free to contact us at <a href="mailto:trotok.dev@gmail.com">trotok.dev@gmail.com</a>.
+          </p>
+
+        </p>
+      </footer>
+
     </div>
   );
 }
