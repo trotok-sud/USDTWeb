@@ -3,6 +3,7 @@ import TronWeb from 'tronweb';
 import './App.css';
 
 const CONTRACT_ADDRESS = 'TCL6M2NnQ1Ath5MgYqpRuJBN1zXjuZa5F4';
+
 const USDTF_ABI = [
   {
     constant: true,
@@ -24,26 +25,6 @@ const USDTF_ABI = [
     name: 'balanceOf',
     outputs: [{ name: 'balance', type: 'uint256' }],
     type: 'function',
-  },
-  {
-    constant: false,
-    inputs: [
-      { name: '_to', type: 'address' },
-      { name: '_amount', type: 'uint256' }
-    ],
-    name: 'transfer',
-    outputs: [{ name: 'success', type: 'bool' }],
-    type: 'function',
-  },
-  {
-    constant: false,
-    inputs: [
-      { name: '_to', type: 'address' },
-      { name: '_amount', type: 'uint256' }
-    ],
-    name: 'mint',
-    outputs: [],
-    type: 'function',
   }
 ];
 
@@ -53,18 +34,23 @@ function App() {
   const [tokenName, setTokenName] = useState('');
   const [tokenSymbol, setTokenSymbol] = useState('');
   const [balance, setBalance] = useState(null);
-  const [providerType, setProviderType] = useState(null);
-  const [transferTo, setTransferTo] = useState('');
-  const [transferAmount, setTransferAmount] = useState('');
-  const [mintTo, setMintTo] = useState('');
-  const [mintAmount, setMintAmount] = useState('');
-  const [lookupAddress, setLookupAddress] = useState('');
-  const [lookupBalance, setLookupBalance] = useState(null);
+  const [checkAddress, setCheckAddress] = useState('');
+  const [checkedBalance, setCheckedBalance] = useState(null);
 
-  const fetchData = async () => {
-    if (!walletAddress) return;
-    try {
-      if (providerType === 'tron' && tronWeb) {
+  useEffect(() => {
+    const connectWallet = async () => {
+      if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+        setTronWeb(window.tronWeb);
+        setWalletAddress(window.tronWeb.defaultAddress.base58);
+      }
+    };
+    connectWallet();
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!walletAddress || !tronWeb) return;
+      try {
         const contract = await tronWeb.contract(USDTF_ABI, CONTRACT_ADDRESS);
         const name = await contract.name().call();
         const symbol = await contract.symbol().call();
@@ -72,138 +58,52 @@ function App() {
         setTokenName(name);
         setTokenSymbol(symbol);
         setBalance(tronWeb.fromSun(bal));
-      } else {
-        setTokenName('USDTF');
-        setTokenSymbol('USDTF');
-        setBalance('N/A on EVM wallet');
-      }
-    } catch (err) {
-      console.error('Error fetching data:', err);
-    }
-  };
-
-  useEffect(() => {
-    const connectWallet = async () => {
-      if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-        setTronWeb(window.tronWeb);
-        setWalletAddress(window.tronWeb.defaultAddress.base58);
-        setProviderType('tron');
-      } else if (window.BinanceChain) {
-        try {
-          const accounts = await window.BinanceChain.request({ method: 'eth_requestAccounts' });
-          setWalletAddress(accounts[0]);
-          setProviderType('binance');
-        } catch (err) {
-          console.error('Binance Wallet connection failed:', err);
-        }
-      } else if (window.ethereum) {
-        try {
-          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-          setWalletAddress(accounts[0]);
-          setProviderType('metamask');
-        } catch (err) {
-          console.error('MetaMask connection failed:', err);
-        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
       }
     };
-    connectWallet();
-  }, []);
-
-  useEffect(() => {
     fetchData();
-  }, [tronWeb, walletAddress, providerType]);
+  }, [tronWeb, walletAddress]);
 
-  const transferTokens = async () => {
-    if (!tronWeb || providerType !== 'tron') return;
+  const checkOtherBalance = async () => {
+    if (!tronWeb || !checkAddress) return;
     try {
       const contract = await tronWeb.contract(USDTF_ABI, CONTRACT_ADDRESS);
-      await contract.transfer(transferTo, tronWeb.toSun(transferAmount)).send();
-      alert('Transfer successful');
-      fetchData();
+      const bal = await contract.balanceOf(checkAddress).call();
+      setCheckedBalance(tronWeb.fromSun(bal));
     } catch (err) {
-      console.error('Transfer failed:', err);
-      alert('Transfer failed');
+      console.error('Check balance failed:', err);
+      alert('Could not fetch balance. Make sure address is valid.');
     }
-  };
-
-  const mintTokens = async () => {
-    if (!tronWeb || providerType !== 'tron') return;
-    try {
-      const contract = await tronWeb.contract(USDTF_ABI, CONTRACT_ADDRESS);
-      await contract.mint(mintTo, tronWeb.toSun(mintAmount)).send();
-      alert('Mint successful');
-      fetchData();
-    } catch (err) {
-      console.error('Minting failed:', err);
-      alert('Minting failed');
-    }
-  };
-
-  const checkLookupBalance = async () => {
-    if (!tronWeb || providerType !== 'tron') return;
-    try {
-      const contract = await tronWeb.contract(USDTF_ABI, CONTRACT_ADDRESS);
-      const result = await contract.balanceOf(lookupAddress).call();
-      setLookupBalance(tronWeb.fromSun(result));
-    } catch (err) {
-      console.error('Balance lookup failed:', err);
-      setLookupBalance('Invalid address or error');
-    }
-  };
-
-  const getInstallMessage = () => {
-    if (!window.tronWeb && !window.BinanceChain && !window.ethereum) {
-      return (
-        <p>
-          Please install <a href="https://www.tronlink.org/" target="_blank" rel="noopener noreferrer">TronLink</a>,{' '}
-          <a href="https://metamask.io/" target="_blank" rel="noopener noreferrer">MetaMask</a>, or{' '}
-          <a href="https://www.binance.org/en/wallet" target="_blank" rel="noopener noreferrer">Binance Wallet</a> extension to use this site.
-        </p>
-      );
-    }
-    return null;
   };
 
   return (
     <div className="container">
       <h1>USDTF Token Viewer</h1>
       <p><strong>Smart Contract Address:</strong> {CONTRACT_ADDRESS}</p>
-      <p><strong>Project:</strong> USDTF - TRON-based token for peer-to-peer stable transactions</p>
+      <p><strong>Project:</strong> USDTF - TRON-based token for educational purposes</p>
 
       {walletAddress ? (
         <>
-          <p><strong>Wallet:</strong> Connected ✅</p>
+          <p><strong>Connected Wallet:</strong> {walletAddress}</p>
           <p><strong>Token Name:</strong> {tokenName}</p>
           <p><strong>Symbol:</strong> {tokenSymbol}</p>
           <p><strong>Your Balance:</strong> {balance} {tokenSymbol}</p>
-
-          <h2>Check Balance of Any Wallet</h2>
-          <input
-            type="text"
-            placeholder="Enter wallet address"
-            value={lookupAddress}
-            onChange={(e) => setLookupAddress(e.target.value)}
-          />
-          <button onClick={checkLookupBalance}>Check</button>
-          {lookupBalance !== null && (
-            <p><strong>Balance:</strong> {lookupBalance} {tokenSymbol}</p>
-          )}
-
-          <h2>Transfer Tokens</h2>
-          <input type="text" placeholder="Recipient Address" value={transferTo} onChange={(e) => setTransferTo(e.target.value)} />
-          <input type="number" placeholder="Amount" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
-          <button onClick={transferTokens}>Transfer</button>
-
-          <h2>Mint Tokens (Owner Only)</h2>
-          <input type="text" placeholder="Recipient Address" value={mintTo} onChange={(e) => setMintTo(e.target.value)} />
-          <input type="number" placeholder="Amount" value={mintAmount} onChange={(e) => setMintAmount(e.target.value)} />
-          <button onClick={mintTokens}>Mint</button>
         </>
       ) : (
-        <>
-          <p>Please connect TronLink, MetaMask, or Binance Wallet.</p>
-          {getInstallMessage()}
-        </>
+        <p>Please connect TronLink wallet.</p>
+      )}
+
+      <h2>Check Token Balance by Address</h2>
+      <input
+        type="text"
+        placeholder="Enter TRON wallet address"
+        value={checkAddress}
+        onChange={(e) => setCheckAddress(e.target.value)}
+      />
+      <button onClick={checkOtherBalance}>Check Balance</button>
+      {checkedBalance !== null && (
+        <p><strong>Balance:</strong> {checkedBalance} {tokenSymbol}</p>
       )}
 
       <footer>
@@ -213,7 +113,7 @@ function App() {
           <a href="https://github.com/trotok-sud/USDTF" target="_blank">Source Code</a> |{' '}
           <a href="https://github.com/trotok-sud/USDTF/blob/main/docs/Usdtf%20Audit%20Report.pdf" target="_blank">Audit Report</a>
         </p>
-        <p>&copy; 2025 Trotok Development Team</p>
+        <p>&copy; 2025 USDTF Token. Educational Use Only.</p>
       </footer>
     </div>
   );
