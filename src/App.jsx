@@ -150,14 +150,24 @@ function App() {
 
   return (
     <div className="container">
-      <img src="/logo.png" alt="USDTF Logo" style={{ height: '80px', marginBottom: '1rem' }} />
+      <img
+        src="/logo.png"
+        alt="USDTF Logo"
+        style={{
+          width: '120px',
+          height: '120px',
+          display: 'block',
+          margin: '1rem auto'
+        }}
+      />
+
+      />
       <h1>USDTF Token Viewer</h1>
       <p><strong>Smart Contract Address:</strong> {CONTRACT_ADDRESS}</p>
-      <p><strong>Project:</strong> USDTF - TRON-based token for peer-to-peer stable transactions</p>
+      <p><strong>Project:</strong> USDTF is a TRON-based stable token designed for peer-to-peer educational and experimental use.</p>
 
       {walletAddress ? (
         <>
-          <p><strong>Wallet:</strong> Connected ✅</p>
           <p><strong>Token Name:</strong> {tokenName}</p>
           <p><strong>Symbol:</strong> {tokenSymbol}</p>
           <p><strong>Balance:</strong> {balance} {tokenSymbol}</p>
@@ -174,33 +184,20 @@ function App() {
         </>
       ) : (
         <>
-          <p>Please connect TronLink, MetaMask, or Binance Wallet.</p>
+          <p>Please connect your TronLink, MetaMask, or Binance Wallet to interact with the contract.</p>
           {getInstallMessage()}
         </>
       )}
-      <h2>Request Tokens</h2>
-      <p>If you're interested in receiving USDTF tokens for testing or use, feel free to contact us:</p>
-      <ul>
-        <li>Email: <a href="mailto:trotok.dev@gmail.com">trotok.dev@gmail.com</a></li>
-        <li>GitHub: <a href="https://github.com/trotok-sud/USDTF" target="_blank">Project Repository</a></li>
-      </ul>
 
       <footer>
         <hr />
         <p>
-          <a href="https://trotok-sud.github.io/USDTWeb" target="_blank" rel="noopener noreferrer">Official Website</a> |{' '}
-          <a href="https://github.com/trotok-sud/USDTF" target="_blank" rel="noopener noreferrer">Source Code</a> |{' '}
-          <a href="https://github.com/trotok-sud/USDTF/blob/main/docs/Usdtf%20Audit%20Report.pdf" target="_blank" rel="noopener noreferrer">Audit Report</a>
+          <a href="https://trotok-sud.github.io/USDTWeb" target="_blank">Official Website</a> |{' '}
+          <a href="https://github.com/trotok-sud/USDTF" target="_blank">GitHub</a> |{' '}
+          <a href="https://github.com/trotok-sud/USDTF/blob/main/docs/Usdtf%20Audit%20Report.pdf" target="_blank">Audit Report</a>
         </p>
-        <p>© 2025 Trotok Development Team. All rights reserved.</p>
-        <p>
-          <p>
-            If you're interested in receiving USDTF tokens for educational or testing purposes, feel free to contact us at <a href="mailto:trotok.dev@gmail.com">trotok.dev@gmail.com</a>.
-          </p>
-
-        </p>
+        <p>&copy; 2025 Trotok Development Team</p>
       </footer>
-
     </div>
   );
 }
