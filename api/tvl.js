@@ -5,5 +5,5 @@ export default function handler(req, res) {
 
   const tvl = totalLockedTokens * tokenPriceUSD;
 
-  res.status(200).json({ tvlL2500000 });
+  res.status(200).json({ tvl:2500000 });
 }
